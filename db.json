@@ -1,0 +1,142 @@
+{
+  "transactions": [
+    {
+      "id": "sample-1",
+      "date": "2024-10-31",
+      "merchant": "Amazon.com Services LLC",
+      "person": "Household Member 1",
+      "amount": 19350.01,
+      "currency": "USD",
+      "type": "INCOME",
+      "category": "Salary",
+      "rawDescription": "Earnings Statement - Pay Date: 10/31/2024",
+      "sourceFileId": "sample-file-1"
+    },
+    {
+      "id": "sample-2",
+      "date": "2024-11-05",
+      "merchant": "Whole Foods",
+      "person": "Household Member 1",
+      "amount": 154.2,
+      "currency": "USD",
+      "type": "EXPENSE",
+      "category": "Groceries",
+      "rawDescription": "WHOLEFOODS MARKET BELLEVUE",
+      "sourceFileId": "sample-file-2"
+    },
+    {
+      "id": "sample-3",
+      "date": "2024-11-01",
+      "merchant": "Avalon Bellevue",
+      "person": "Household Member 1",
+      "amount": 3200,
+      "currency": "USD",
+      "type": "EXPENSE",
+      "category": "Rent",
+      "rawDescription": "RENT PAYMENT - NOV 2024",
+      "sourceFileId": "sample-file-2"
+    },
+    {
+      "id": "sample-4",
+      "date": "2024-11-10",
+      "merchant": "Starbucks",
+      "person": "Household Member 2",
+      "amount": 12.5,
+      "currency": "USD",
+      "type": "EXPENSE",
+      "category": "Dining",
+      "rawDescription": "STARBUCKS COFFEE",
+      "sourceFileId": "sample-file-3"
+    },
+    {
+      "id": "sample-5",
+      "date": "2024-10-31",
+      "merchant": "IRS - Federal Tax",
+      "person": "Household Member 1",
+      "amount": 4057.23,
+      "currency": "USD",
+      "type": "EXPENSE",
+      "category": "Tax",
+      "rawDescription": "Federal Income Tax Deduction",
+      "sourceFileId": "sample-file-1"
+    },
+    {
+      "id": "sample-6",
+      "date": "2024-10-31",
+      "merchant": "Social Security",
+      "person": "Household Member 1",
+      "amount": 280.86,
+      "currency": "USD",
+      "type": "EXPENSE",
+      "category": "Tax",
+      "rawDescription": "Medicare Tax Deduction",
+      "sourceFileId": "sample-file-1"
+    }
+  ],
+  "statements": [
+    {
+      "id": "sample-file-1",
+      "name": "Amazon_Paystub_Oct_2024.pdf",
+      "person": "Household Member 1",
+      "uploadDate": "2024-11-01T10:00:00.000Z",
+      "status": "completed",
+      "transactionCount": 1
+    },
+    {
+      "id": "sample-file-2",
+      "name": "Chase_Checking_Nov_2024.pdf",
+      "person": "Household Member 1",
+      "uploadDate": "2024-11-01T10:05:00.000Z",
+      "status": "completed",
+      "transactionCount": 2
+    },
+    {
+      "id": "sample-file-3",
+      "name": "Amex_Gold_Nov_2024.pdf",
+      "person": "Household Member 2",
+      "uploadDate": "2024-11-01T10:10:00.000Z",
+      "status": "completed",
+      "transactionCount": 1
+    }
+  ],
+  "merchantRules": [],
+  "preferences": {
+    "cachedTaxSuggestions": [
+      {
+        "id": "maximize-401k-contributions",
+        "title": "Maximize 401(k) Contributions",
+        "description": "Given the significant salary income from Amazon, prioritize contributing the maximum annual limit ($23,000 for 2024) to a traditional 401(k) to reduce your taxable income dollar-for-dollar.",
+        "category": "Investment"
+      },
+      {
+        "id": "hsa-contribution-strategy",
+        "title": "Fund a Health Savings Account (HSA)",
+        "description": "If enrolled in a high-deductible health plan, contribute to an HSA. Contributions are 100% tax-deductible (up to $8,300 for families in 2024), reducing your overall tax liability while providing tax-free growth for medical costs.",
+        "category": "Investment"
+      },
+      {
+        "id": "state-sales-tax-deduction",
+        "title": "Deduct State Sales Tax",
+        "description": "As a resident of Bellevue, WA, you pay no state income tax. Ensure you track and deduct state and local sales taxes on Schedule A of your federal return if your itemized deductions exceed the standard deduction.",
+        "category": "Deduction"
+      },
+      {
+        "id": "backdoor-roth-ira",
+        "title": "Execute a Backdoor Roth IRA",
+        "description": "Your household income level likely exceeds the threshold for direct Roth IRA contributions. Use the backdoor method—making a non-deductible contribution to a traditional IRA and converting it—to gain tax-free growth.",
+        "category": "Investment"
+      },
+      {
+        "id": "charitable-giving-bundling",
+        "title": "Bundle Charitable Contributions",
+        "description": "Since you are currently renting and may not have high mortgage interest deductions, consider 'bundling' several years of charitable donations into a single tax year to surpass the standard deduction threshold and maximize tax savings.",
+        "category": "Deduction"
+      }
+    ],
+    "taxSuggestionsTimestamp": 1773587548010,
+    "completedTaxActions": [
+      "maximize-401k-contributions",
+      "charitable-giving-bundling"
+    ]
+  }
+}
