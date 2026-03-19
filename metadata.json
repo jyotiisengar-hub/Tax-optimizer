@@ -1,5 +1,5 @@
 {
   "name": "Tax Optimizer",
-  "description": "An AI-powered financial tool designed to maximize your tax savings. By analyzing your household spending and income statements, it provides actionable tax optimization strategies, deduction tracking, and real-time financial insights.",
+  "description": "An AI-powered financial tool designed to maximize your tax savings. By analyzing your household spending and income statements, it provides actionable tax optimization strategies, deduction tracking, and real-time financial insights. Includes demo data for quick exploration.",
   "requestFramePermissions": []
 }

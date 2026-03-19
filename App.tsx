@@ -48,7 +48,8 @@ import {
   deleteStatementAndTransactions,
   restoreKnowledgeBase,
   getFamilyMembers,
-  saveFamilyMember
+  saveFamilyMember,
+  initDB
 } from './db';
 import * as XLSX from 'xlsx';
 import { parseStatement } from './geminiService';
@@ -92,9 +93,8 @@ const App: React.FC = () => {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_COLORS);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   
   // Persistent Upload State
   const [uploadIsProcessing, setUploadIsProcessing] = useState(false);
@@ -172,29 +172,27 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const loadData = async (retryCount = 0) => {
+    const loadData = async () => {
       try {
-        setServerError(null);
-        // Add timestamp to bypass potential browser cache
-        const response = await fetch(`/api/data?t=${Date.now()}`);
-        if (!response.ok) throw new Error(`Server responded with ${response.status}`);
-        const data = await response.json();
+        await initDB();
+        const [txs, stmts, rules, colors, members] = await Promise.all([
+          getTransactions(),
+          getStatementFiles(),
+          getMerchantRules(),
+          getCategoryColors(),
+          getFamilyMembers()
+        ]);
         
-        setTransactions(data.transactions || []);
-        setStatements(data.statements || []);
-        setMerchantRules(data.merchantRules || []);
-        setFamilyMembers(data.familyMembers || []);
-        if (data.preferences?.categoryColors) {
-          setCategoryColors({ ...DEFAULT_COLORS, ...data.preferences.categoryColors });
+        setTransactions(txs || []);
+        setStatements(stmts || []);
+        setMerchantRules(rules || []);
+        setFamilyMembers(members || []);
+        if (Object.keys(colors).length > 0) {
+          setCategoryColors({ ...DEFAULT_COLORS, ...colors });
         }
-        setLastSyncTime(new Date());
+        setLastSaveTime(new Date());
       } catch (err) {
         console.error("Failed to load DB data", err);
-        if (retryCount < 2) {
-          setTimeout(() => loadData(retryCount + 1), 1000);
-        } else {
-          setServerError("Could not connect to the cloud database. Please check your connection or refresh the page.");
-        }
       } finally {
         setLoading(false);
       }
@@ -226,16 +224,16 @@ const App: React.FC = () => {
   const handleProcessed = async (allNewTxs: Transaction[], allFileInfos: StatementFile[]) => {
     setTransactions(prev => [...prev, ...allNewTxs]);
     setStatements(prev => [...prev, ...allFileInfos]);
-    setIsSyncing(true);
+    setIsSaving(true);
     try {
       await Promise.all([
         saveTransactions(allNewTxs),
         saveStatementFiles(allFileInfos)
       ]);
     } catch (err) {
-      console.error("Sync failed", err);
+      console.error("Save failed", err);
     } finally {
-      setIsSyncing(false);
+      setIsSaving(false);
     }
     setActiveTab('expenses');
   };
@@ -257,7 +255,7 @@ const App: React.FC = () => {
       return [...filtered, newRule];
     });
     
-    setIsSyncing(true);
+    setIsSaving(true);
     try {
       await saveMerchantRule(newRule);
 
@@ -272,22 +270,22 @@ const App: React.FC = () => {
       const txsToUpdate = updatedTransactions.filter(t => t.merchant === tx.merchant);
       await saveTransactions(txsToUpdate);
     } catch (err) {
-      console.error("Failed to sync category update", err);
+      console.error("Failed to save category update", err);
     } finally {
-      setIsSyncing(false);
+      setIsSaving(false);
     }
   };
 
   const handleUpdateColor = async (category: string, color: string) => {
     const newColors = { ...categoryColors, [category]: color };
     setCategoryColors(newColors);
-    setIsSyncing(true);
+    setIsSaving(true);
     try {
       await saveCategoryColors(newColors);
     } catch (err) {
-      console.error("Failed to sync color update", err);
+      console.error("Failed to save color update", err);
     } finally {
-      setIsSyncing(false);
+      setIsSaving(false);
     }
   };
 
@@ -306,13 +304,13 @@ const App: React.FC = () => {
       color: '#3b82f6' // Default color
     };
     setFamilyMembers(prev => [...prev, newMember]);
-    setIsSyncing(true);
+    setIsSaving(true);
     try {
       await saveFamilyMember(newMember);
     } catch (err) {
       console.error("Failed to save family member", err);
     } finally {
-      setIsSyncing(false);
+      setIsSaving(false);
     }
   };
 
@@ -381,9 +379,9 @@ const App: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <h1 className="font-bold text-slate-900 truncate">Tax Optimizer</h1>
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${serverError ? 'bg-rose-500' : isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`} />
-              <p className={`text-[9px] font-bold uppercase tracking-widest ${serverError ? 'text-rose-500' : 'text-slate-400'}`}>
-                {serverError ? 'Offline' : isSyncing ? 'Optimizing...' : 'AI Active'}
+              <div className={`w-1.5 h-1.5 rounded-full ${isSaving ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`} />
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                {isSaving ? 'Optimizing...' : 'AI Active'}
               </p>
             </div>
           </div>
@@ -421,34 +419,9 @@ const App: React.FC = () => {
             <Database size={20} /> Knowledge Base
           </button>
         </nav>
-
-        <div className="bg-slate-50 p-4 rounded-3xl">
-          <div className="flex items-center gap-2 text-slate-400 mb-2"><ShieldCheck size={14} /><span className="text-[10px] font-bold uppercase tracking-widest">Secured DB</span></div>
-          <p className="text-[10px] text-slate-500 leading-relaxed">All your data is stored securely in a permanent cloud database.</p>
-        </div>
       </aside>
 
       <main className="flex-1 p-6 md:p-10 overflow-y-auto max-h-screen">
-        {serverError && (
-          <div className="mb-8 p-6 bg-rose-50 border border-rose-100 rounded-[32px] flex items-center justify-between text-rose-600 animate-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center">
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <p className="font-bold text-lg">Cloud Sync Error</p>
-                <p className="text-sm opacity-80">{serverError}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-6 py-3 bg-rose-600 text-white rounded-2xl font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
-            >
-              Retry Connection
-            </button>
-          </div>
-        )}
-
         <header className="flex items-center justify-between mb-10">
           <div>
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Tax Optimization Center</h2>
@@ -478,7 +451,15 @@ const App: React.FC = () => {
             <Dashboard 
               transactions={transactions} 
               categoryColors={categoryColors}
-              onMonthClick={(month) => { setInitialMonthFilter(month); setActiveTab('expenses'); }} 
+              onMonthClick={(month) => { 
+                if (month === 'deductions') {
+                  setInitialMonthFilter(null);
+                  setActiveTab('deductions');
+                } else {
+                  setInitialMonthFilter(month); 
+                  setActiveTab('expenses'); 
+                }
+              }} 
             />
             <div className="h-px bg-slate-100 w-full" />
             <TaxSuggestions transactions={transactions} />
@@ -515,17 +496,6 @@ const App: React.FC = () => {
 
         {activeTab === 'upload' && (
           <div className="max-w-2xl mx-auto py-10 space-y-8">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-amber-900 mb-1">Privacy Recommendation</h4>
-                <p className="text-sm text-amber-800 leading-relaxed">
-                  Users are encouraged to upload <span className="font-bold underline decoration-amber-300">sample or redacted</span> financial statements when testing the prototype.
-                </p>
-              </div>
-            </div>
             <FileUpload 
               onUpload={processFiles}
               onProcessed={handleProcessed} 
@@ -541,6 +511,17 @@ const App: React.FC = () => {
               error={uploadError}
               setError={setUploadError}
             />
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-amber-900 mb-1">Privacy Recommendation</h4>
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  Users are encouraged to upload <span className="font-bold underline decoration-amber-300">sample or redacted</span> financial statements when testing the prototype.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
