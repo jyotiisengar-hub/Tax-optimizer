@@ -27,6 +27,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
+import { NudgeCenter } from './components/NudgeCenter';
 import { TransactionList } from './components/TransactionList';
 import { FileUpload } from './components/FileUpload';
 import { FamilyDirectory } from './components/FamilyDirectory';
@@ -35,7 +36,7 @@ import { ChatInterface } from './components/ChatInterface';
 import { TaxSuggestions } from './components/TaxSuggestions';
 import { TaxAnalytics } from './components/TaxAnalytics';
 import { TaxLogic, Country } from './components/TaxLogic';
-import { Transaction, StatementFile, KnowledgeBaseExport, Category, MerchantRule, ProcessSummary, FileProgress, FamilyMember } from './types';
+import { Transaction, StatementFile, KnowledgeBaseExport, Category, MerchantRule, ProcessSummary, FileProgress, FamilyMember, Nudge, TransactionType } from './types';
 import { 
   getTransactions, 
   saveTransactions, 
@@ -85,7 +86,7 @@ const DEFAULT_COLORS: Record<string, string> = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'deductions' | 'expenses' | 'history' | 'upload' | 'knowledge' | 'family' | 'logic' | 'chat' | 'tax'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'deductions' | 'expenses' | 'history' | 'upload' | 'knowledge' | 'family' | 'chat' | 'tax'>('dashboard');
   const [selectedCountry, setSelectedCountry] = useState<Country>('USA');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<StatementFile[]>([]);
@@ -104,6 +105,80 @@ const App: React.FC = () => {
   
   const [initialMonthFilter, setInitialMonthFilter] = useState<string | null>(null);
   const [personSearchFilter, setPersonSearchFilter] = useState<string | null>(null);
+  const [nudges, setNudges] = useState<Nudge[]>([]);
+
+  // Behavioral Nudge Engine: Detect Salary and Generate Nudges
+  useEffect(() => {
+    if (transactions.length === 0) return;
+
+    // 1. Salary Nudge
+    const salaryTxs = transactions.filter(t => 
+      t.type === TransactionType.INCOME && 
+      (t.category === Category.SALARY || t.merchant.toLowerCase().includes('salary'))
+    );
+
+    if (salaryTxs.length > 0) {
+      const latestSalary = salaryTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const nudgeId = `salary-${latestSalary.date}`;
+      
+      setNudges(prev => {
+        if (prev.some(n => n.id === nudgeId)) return prev;
+        const newNudge: Nudge = {
+          id: nudgeId,
+          type: 'salary',
+          title: 'Salary Deposit Detected',
+          message: `Your salary of ${latestSalary.currency} ${latestSalary.amount.toLocaleString()} just hit. Move $500 to your Roth IRA now to hit your 2026 goal. Doing this today prevents 'lifestyle creep' later this month.`,
+          actionLabel: 'Authorize Transfer to Roth IRA',
+          concept: 'Intertemporal Choice',
+          explanation: 'Humans naturally prioritize current desires over future needs. By automating your intent the moment you receive income, you reduce the friction of saving and eliminate the temptation to spend the surplus.',
+          date: new Date().toISOString(),
+          isRead: false
+        };
+        return [newNudge, ...prev];
+      });
+    }
+
+    // 2. Medical Tax Efficiency Nudge
+    const healthTxs = transactions.filter(t => 
+      t.type === TransactionType.EXPENSE && 
+      (t.category === Category.HEALTH || t.merchant.toLowerCase().includes('medical') || t.merchant.toLowerCase().includes('pharmacy'))
+    );
+
+    if (healthTxs.length > 0) {
+      const totalHealth = healthTxs.reduce((sum, t) => sum + t.amount, 0);
+      const nudgeId = 'medical-tax-efficiency';
+      
+      setNudges(prev => {
+        if (prev.some(n => n.id === nudgeId)) return prev;
+        const newNudge: Nudge = {
+          id: nudgeId,
+          type: 'insight',
+          title: 'Tax-Inefficient Medical Spending',
+          message: `You've spent ${healthTxs[0].currency} ${totalHealth.toLocaleString()} on medical bills using post-tax salary. By using an HSA or FSA, you could have saved approximately ${healthTxs[0].currency} ${(totalHealth * 0.3).toLocaleString()} in taxes.`,
+          actionLabel: 'Setup Pre-Tax Medical Account',
+          concept: 'Tax Arbitrage',
+          explanation: 'Paying for medical expenses with post-tax dollars is like paying a "tax penalty" on your health. Pre-tax accounts (HSA/FSA) allow you to pay with "gross" income, effectively giving you a 20-30% discount on every medical dollar spent.',
+          date: new Date().toISOString(),
+          isRead: false
+        };
+        return [newNudge, ...prev];
+      });
+    }
+  }, [transactions]);
+
+  const handleDismissNudge = (id: string) => {
+    setNudges(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const handleActionNudge = (nudge: Nudge) => {
+    // Simulate "Automation of Intent"
+    if (nudge.type === 'salary') {
+      alert(`Automation of Intent: Transfer of $500 to Roth IRA authorized successfully! \n\nThis reduces the "Action Gap" by converting intent into immediate action.`);
+    } else if (nudge.id === 'medical-tax-efficiency') {
+      alert(`Optimization Strategy: We've initiated a guide to help you set up an HSA/FSA with your employer. \n\nThis will automate your "Tax Arbitrage" strategy for future medical expenses.`);
+    }
+    handleDismissNudge(nudge.id);
+  };
 
   const processFiles = async (files: FileList) => {
     setUploadIsProcessing(true);
@@ -377,7 +452,7 @@ const App: React.FC = () => {
             <Sparkles size={20} />
           </div>
           <div className="flex-1 overflow-hidden">
-            <h1 className="font-bold text-slate-900 truncate">Tax Optimizer</h1>
+            <h1 className="font-bold text-slate-900 truncate">Household CFO</h1>
             <div className="flex items-center gap-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${isSaving ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`} />
               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
@@ -389,32 +464,39 @@ const App: React.FC = () => {
 
         <nav className="flex-1 flex flex-col gap-2">
           <button onClick={() => { setActiveTab('dashboard'); setInitialMonthFilter(null); }} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <LayoutDashboard size={20} /> Tax Dashboard
-          </button>
-          <button onClick={() => setActiveTab('logic')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'logic' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Scale size={20} /> Tax Logic
-          </button>
-          <button onClick={() => setActiveTab('upload')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'upload' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <PlusCircle size={20} /> Add Statements
-          </button>
-          <button onClick={() => setActiveTab('deductions')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'deductions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <ShieldCheck size={20} /> Deductions
+            <LayoutDashboard size={20} /> Dashboard
           </button>
           <button onClick={() => setActiveTab('tax')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'tax' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Sparkles size={20} /> Optimization
+            <Sparkles size={20} /> Opportunities
+          </button>
+          <button onClick={() => setActiveTab('chat')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <MessageSquare size={20} /> Finance Assistant
+          </button>
+          <button onClick={() => setActiveTab('family')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'family' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <Users size={20} /> Profile
+          </button>
+
+          <div className="mt-4 mb-2 px-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transactions</p>
+          </div>
+
+          <button onClick={() => setActiveTab('upload')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'upload' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <PlusCircle size={20} /> Add Statements
           </button>
           <button onClick={() => setActiveTab('expenses')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'expenses' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Receipt size={20} /> Expenses
           </button>
-          <button onClick={() => setActiveTab('chat')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <MessageSquare size={20} /> Tax Assistant
-          </button>
-          <button onClick={() => setActiveTab('family')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'family' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Users size={20} /> Family Network
+          <button onClick={() => setActiveTab('deductions')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'deductions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <ShieldCheck size={20} /> Deductions
           </button>
           <button onClick={() => setActiveTab('history')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'history' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <History size={20} /> Upload History
           </button>
+
+          <div className="mt-4 mb-2 px-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">System</p>
+          </div>
+
           <button onClick={() => setActiveTab('knowledge')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'knowledge' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Database size={20} /> Knowledge Base
           </button>
@@ -424,19 +506,18 @@ const App: React.FC = () => {
       <main className="flex-1 p-6 md:p-10 overflow-y-auto max-h-screen">
         <header className="flex items-center justify-between mb-10">
           <div>
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Tax Optimization Center</h2>
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Financial Optimization</h2>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-slate-900">
-                {activeTab === 'dashboard' && 'Optimization Dashboard'}
+                {activeTab === 'dashboard' && 'Financial Dashboard'}
                 {activeTab === 'deductions' && 'Tax Deductions'}
                 {activeTab === 'expenses' && 'Household Expenses'}
-                {activeTab === 'family' && 'Household Network'}
+                {activeTab === 'family' && 'User Profile'}
                 {activeTab === 'history' && 'Statement Archive'}
                 {activeTab === 'upload' && 'Import Statements'}
-                {activeTab === 'knowledge' && 'Tax Knowledge Base'}
-                {activeTab === 'chat' && 'AI Tax Consultant'}
-                {activeTab === 'tax' && 'Optimization Strategies'}
-                {activeTab === 'logic' && 'Taxation Logic'}
+                {activeTab === 'knowledge' && 'Grounding data'}
+                {activeTab === 'chat' && 'AI Finance Assistant'}
+                {activeTab === 'tax' && 'Financial Opportunities'}
               </h1>
               {activeTab === 'chat' && <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">(under progress)</span>}
             </div>
@@ -462,7 +543,12 @@ const App: React.FC = () => {
               }} 
             />
             <div className="h-px bg-slate-100 w-full" />
-            <TaxSuggestions transactions={transactions} />
+            <TaxSuggestions 
+              transactions={transactions} 
+              nudges={nudges}
+              onDismissNudge={handleDismissNudge}
+              onActionNudge={handleActionNudge}
+            />
           </div>
         )}
 
@@ -525,13 +611,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'logic' && (
-          <TaxLogic 
-            selectedCountry={selectedCountry}
-            onCountryChange={setSelectedCountry}
-          />
-        )}
-
         {activeTab === 'chat' && (
           <div className="max-w-4xl mx-auto">
             <ChatInterface transactions={transactions} country={selectedCountry} />
@@ -542,7 +621,13 @@ const App: React.FC = () => {
           <div className="space-y-12">
             <TaxAnalytics transactions={transactions} />
             <div className="h-px bg-slate-100 w-full" />
-            <TaxSuggestions transactions={transactions} country={selectedCountry} />
+            <TaxSuggestions 
+              transactions={transactions} 
+              country={selectedCountry} 
+              nudges={nudges}
+              onDismissNudge={handleDismissNudge}
+              onActionNudge={handleActionNudge}
+            />
           </div>
         )}
 

@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Loader2, ShieldCheck, Sparkles, RefreshCw, FileText, CheckCircle2, Tag, Clock } from 'lucide-react';
-import { Transaction } from '../types';
+import { Lightbulb, Loader2, ShieldCheck, Sparkles, RefreshCw, FileText, CheckCircle2, Tag, Clock, Bell, Zap, Brain, X, ArrowRight } from 'lucide-react';
+import { Transaction, Nudge } from '../types';
 import { getTaxSuggestions } from '../geminiService';
 import { saveCompletedTaxAction, getCompletedTaxActions, saveTaxSuggestions, getCachedTaxSuggestions } from '../db';
 import { formatDistanceToNow } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface TaxAction {
   id: string;
@@ -16,9 +17,18 @@ interface TaxAction {
 interface TaxSuggestionsProps {
   transactions: Transaction[];
   country?: string;
+  nudges?: Nudge[];
+  onDismissNudge?: (id: string) => void;
+  onActionNudge?: (nudge: Nudge) => void;
 }
 
-export const TaxSuggestions: React.FC<TaxSuggestionsProps> = ({ transactions, country = 'USA' }) => {
+export const TaxSuggestions: React.FC<TaxSuggestionsProps> = ({ 
+  transactions, 
+  country = 'USA',
+  nudges = [],
+  onDismissNudge,
+  onActionNudge
+}) => {
   const [suggestions, setSuggestions] = useState<TaxAction[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -226,6 +236,64 @@ export const TaxSuggestions: React.FC<TaxSuggestionsProps> = ({ transactions, co
           </div>
 
           <div className="space-y-6">
+            {/* Behavioral Nudges Section */}
+            {nudges.filter(n => !n.isRead).length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <Bell size={16} className="text-blue-600" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Behavioral Nudges</h3>
+                </div>
+                <div className="space-y-4">
+                  <AnimatePresence mode="popLayout">
+                    {nudges.filter(n => !n.isRead).map((nudge) => (
+                      <motion.div
+                        key={nudge.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-white border border-blue-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
+                      >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 blur-2xl opacity-50" />
+                        
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="w-8 h-8 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-100">
+                              {nudge.type === 'salary' ? <Zap size={16} /> : <Brain size={16} />}
+                            </div>
+                            <button 
+                              onClick={() => onDismissNudge?.(nudge.id)}
+                              className="p-1 text-slate-300 hover:text-slate-500 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          
+                          <h4 className="font-bold text-slate-900 text-sm mb-1">{nudge.title}</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed mb-4">{nudge.message}</p>
+                          
+                          <button
+                            onClick={() => onActionNudge?.(nudge)}
+                            className="w-full bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group/btn"
+                          >
+                            {nudge.actionLabel}
+                            <ArrowRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                          </button>
+
+                          <div className="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                            <p className="text-[10px] text-blue-800/70 leading-relaxed italic">
+                              <span className="font-bold uppercase tracking-tighter mr-1">Psychology:</span>
+                              {nudge.explanation}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+
             <div className="bg-slate-900 text-white rounded-[32px] p-8 shadow-xl relative overflow-hidden">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 text-blue-400 mb-4">

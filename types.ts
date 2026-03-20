@@ -23,6 +23,18 @@ export enum Category {
   OTHERS = 'Others'
 }
 
+export interface Nudge {
+  id: string;
+  type: 'salary' | 'goal' | 'insight';
+  title: string;
+  message: string;
+  actionLabel: string;
+  concept: string;
+  explanation: string;
+  date: string;
+  isRead: boolean;
+}
+
 export interface MerchantRule {
   merchant: string;
   category: Category;

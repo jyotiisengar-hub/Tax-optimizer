@@ -22,23 +22,28 @@ const formatCurrency = (amount: number, currency: string = 'USD') => {
 };
 
 export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
-  const taxStats = useMemo(() => {
+  const financialStats = useMemo(() => {
     let totalIncome = 0;
     let totalTaxPaid = 0;
-    const monthlyData: Record<string, { month: string, income: number, taxPaid: number, estimatedTax: number }> = {};
+    let totalExpenses = 0;
+    const monthlyData: Record<string, { month: string, income: number, taxPaid: number, estimatedTax: number, totalExpenses: number }> = {};
 
     transactions.forEach(t => {
       const month = format(parseISO(t.date), 'MMM yy');
       if (!monthlyData[month]) {
-        monthlyData[month] = { month, income: 0, taxPaid: 0, estimatedTax: 0 };
+        monthlyData[month] = { month, income: 0, taxPaid: 0, estimatedTax: 0, totalExpenses: 0 };
       }
 
       if (t.type === TransactionType.INCOME) {
         totalIncome += t.amount;
         monthlyData[month].income += t.amount;
-      } else if (t.category === Category.TAX) {
-        totalTaxPaid += t.amount;
-        monthlyData[month].taxPaid += t.amount;
+      } else if (t.type === TransactionType.EXPENSE) {
+        totalExpenses += t.amount;
+        monthlyData[month].totalExpenses += t.amount;
+        if (t.category === Category.TAX) {
+          totalTaxPaid += t.amount;
+          monthlyData[month].taxPaid += t.amount;
+        }
       }
     });
 
@@ -65,6 +70,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
     return {
       totalIncome,
       totalTaxPaid,
+      totalExpenses,
       estimatedTotalTax,
       monthlyData: sortedMonthly,
       effectiveRate: totalIncome > 0 ? (totalTaxPaid / totalIncome) * 100 : 0,
@@ -83,7 +89,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             </div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Income</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(taxStats.totalIncome)}</div>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalIncome)}</div>
           <p className="text-[10px] text-slate-400 mt-1 font-medium italic">Gross earnings identified</p>
         </div>
 
@@ -92,10 +98,10 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
               <Receipt size={20} />
             </div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tax Paid</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Expenses</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(taxStats.totalTaxPaid)}</div>
-          <p className="text-[10px] text-emerald-600 mt-1 font-bold">Effective Rate: {taxStats.effectiveRate.toFixed(1)}%</p>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalExpenses)}</div>
+          <p className="text-[10px] text-emerald-600 mt-1 font-bold">Burn Rate: {financialStats.totalIncome > 0 ? ((financialStats.totalExpenses / financialStats.totalIncome) * 100).toFixed(1) : 0}%</p>
         </div>
 
         <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
@@ -105,7 +111,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             </div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Estimated Tax</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(taxStats.estimatedTotalTax)}</div>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.estimatedTotalTax)}</div>
           <p className="text-[10px] text-slate-400 mt-1 font-medium">Projected liability</p>
         </div>
 
@@ -115,9 +121,9 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
               <div className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center">
                 <Percent size={20} />
               </div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tax Gap</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Net Savings</span>
             </div>
-            <div className="text-2xl font-black">{formatCurrency(Math.max(0, taxStats.estimatedTotalTax - taxStats.totalTaxPaid))}</div>
+            <div className="text-2xl font-black">{formatCurrency(Math.max(0, financialStats.totalIncome - financialStats.totalExpenses))}</div>
             <p className="text-[10px] text-blue-400 mt-1 font-bold flex items-center gap-1">
               <ArrowUpRight size={10} /> Potential Savings Opportunity
             </p>
@@ -131,29 +137,29 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
         <div className="lg:col-span-2 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-xl font-bold text-slate-900">Tax vs Income Trend</h3>
-              <p className="text-sm text-slate-500">Monthly comparison of earnings and tax liability</p>
+              <h3 className="text-xl font-bold text-slate-900">Money In vs Money Out Trend</h3>
+              <p className="text-sm text-slate-500">Monthly comparison of earnings and total expenses</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Income</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Money In</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Tax Paid</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Money Out</span>
               </div>
             </div>
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={taxStats.monthlyData}>
+              <AreaChart data={financialStats.monthlyData}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
-                  <linearGradient id="colorTax" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
@@ -164,16 +170,16 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
                 <Tooltip 
                   contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'}}
                 />
-                <Area type="monotone" dataKey="income" name="Income" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
-                <Area type="monotone" dataKey="taxPaid" name="Tax Paid" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorTax)" />
+                <Area type="monotone" dataKey="income" name="Money In" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
+                <Area type="monotone" dataKey="totalExpenses" name="Money Out" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorExpenses)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col">
-          <h3 className="text-xl font-bold text-slate-900 mb-2">Tax Efficiency</h3>
-          <p className="text-sm text-slate-500 mb-8">How well you are utilizing tax deductions</p>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Financial Efficiency</h3>
+          <p className="text-sm text-slate-500 mb-8">How well you are managing your cash flow</p>
           
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className="relative w-48 h-48 flex items-center justify-center">
@@ -195,25 +201,25 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
                   strokeWidth="12"
                   fill="transparent"
                   strokeDasharray={2 * Math.PI * 80}
-                  strokeDashoffset={2 * Math.PI * 80 * (1 - taxStats.estimatedRate / 100)}
+                  strokeDashoffset={2 * Math.PI * 80 * (1 - (financialStats.totalIncome > 0 ? (financialStats.totalExpenses / financialStats.totalIncome) : 0))}
                   className="text-blue-600 transition-all duration-1000"
                 />
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="text-3xl font-black text-slate-900">{taxStats.estimatedRate.toFixed(1)}%</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Est. Rate</span>
+                <span className="text-3xl font-black text-slate-900">{financialStats.totalIncome > 0 ? ((1 - financialStats.totalExpenses / financialStats.totalIncome) * 100).toFixed(1) : 0}%</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Savings Rate</span>
               </div>
             </div>
           </div>
 
           <div className="mt-8 space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-              <span className="text-xs font-bold text-slate-500 uppercase">Taxable Income</span>
-              <span className="text-sm font-black text-slate-900">{formatCurrency(taxStats.totalIncome)}</span>
+              <span className="text-xs font-bold text-slate-500 uppercase">Total Money In</span>
+              <span className="text-sm font-black text-slate-900">{formatCurrency(financialStats.totalIncome)}</span>
             </div>
             <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl">
-              <span className="text-xs font-bold text-emerald-600 uppercase">Deductions Found</span>
-              <span className="text-sm font-black text-emerald-700">{formatCurrency(taxStats.totalTaxPaid)}</span>
+              <span className="text-xs font-bold text-emerald-600 uppercase">Total Money Out</span>
+              <span className="text-sm font-black text-emerald-700">{formatCurrency(financialStats.totalExpenses)}</span>
             </div>
           </div>
         </div>
