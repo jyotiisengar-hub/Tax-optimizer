@@ -99,18 +99,7 @@ export const TaxSuggestions: React.FC<TaxSuggestionsProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Optimization Strategies</h2>
-          <div className="flex items-center gap-2 text-slate-500">
-            <p>AI-driven tax saving opportunities identified from your spending.</p>
-            {lastUpdated && (
-              <span className="flex items-center gap-1 text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
-                <Clock size={10} /> Updated {formatDistanceToNow(lastUpdated)} ago
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-end gap-4">
         <button 
           onClick={fetchFreshSuggestions}
           disabled={isLoading || transactions.length === 0}

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
 import { format, parseISO } from 'date-fns';
-import { Search, AlertTriangle, CheckCircle, ArrowDown, Calendar, RefreshCcw, X, Edit3, ChevronDown, Check } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle, ArrowDown, Calendar, RefreshCcw, X, Edit3, ChevronDown, Check, TrendingDown } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -11,18 +11,24 @@ interface TransactionListProps {
   initialPersonSearch?: string | null;
 }
 
-const formatIndianNumber = (num: number) => {
+const formatCompactNumber = (num: number, currency: string) => {
   const absNum = Math.abs(num);
   const sign = num < 0 ? '-' : '';
-  if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
-  if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
-  return sign + absNum.toLocaleString('en-IN');
+  const code = (currency || 'USD').toUpperCase().trim();
+  if (code === 'INR') {
+    if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
+    if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
+    return sign + absNum.toLocaleString('en-IN');
+  }
+  if (absNum >= 1000000) return sign + (absNum / 1000000).toFixed(2) + 'M';
+  if (absNum >= 1000) return sign + (absNum / 1000).toFixed(2) + 'K';
+  return sign + absNum.toLocaleString('en-US');
 };
 
 const formatCurrency = (amount: number, currency: string) => {
   const code = (currency || 'USD').toUpperCase().trim();
   if (code === 'INR') {
-    return '₹' + formatIndianNumber(amount);
+    return '₹' + formatCompactNumber(amount, 'INR');
   }
   try {
     return new Intl.NumberFormat('en-US', {
@@ -46,10 +52,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'All'>('All');
   const [monthFilter, setMonthFilter] = useState<string | 'All'>('All');
+  const [currencyFilter, setCurrencyFilter] = useState<string | 'All'>('All');
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Available currencies from current transactions
+  const availableCurrencies = useMemo(() => {
+    return Array.from(new Set(transactions.map(t => (t.currency || 'USD').toUpperCase().trim()))).sort();
+  }, [transactions]);
 
   // Available months from current transactions
   const availableMonths = useMemo(() => {
@@ -124,7 +136,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                           t.person.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
     const matchesMonth = monthFilter === 'All' || format(parseISO(t.date), 'MMMM yyyy') === monthFilter;
-    return matchesSearch && matchesCategory && matchesMonth;
+    const matchesCurrency = currencyFilter === 'All' || (t.currency || 'USD').toUpperCase().trim() === currencyFilter;
+    return matchesSearch && matchesCategory && matchesMonth && matchesCurrency;
   }).sort((a, b) => {
     if (sortBy === 'amount') {
       return b.amount - a.amount; 
@@ -184,6 +197,19 @@ export const TransactionList: React.FC<TransactionListProps> = ({
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
+
+          {availableCurrencies.length > 1 && (
+            <select 
+              value={currencyFilter}
+              onChange={(e) => setCurrencyFilter(e.target.value)}
+              className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+            >
+              <option value="All">All Currencies</option>
+              {availableCurrencies.map(cur => (
+                <option key={cur} value={cur}>{cur}</option>
+              ))}
+            </select>
+          )}
 
           <button 
             onClick={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
@@ -263,8 +289,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     </div>
                   )}
                 </td>
-                <td className="px-6 py-4 text-right font-bold text-slate-900 font-mono">
-                  {formatCurrency(t.amount, t.currency)}
+                <td className={`px-6 py-4 text-right font-bold font-mono ${
+                  t.category === Category.SELF_TRANSFER || interFamilyTransferIds.has(t.id) 
+                    ? 'text-slate-900' 
+                    : t.type === TransactionType.INCOME 
+                      ? 'text-emerald-600' 
+                      : 'text-rose-600'
+                }`}>
+                  {t.type === TransactionType.INCOME ? '+' : '-'} {formatCurrency(t.amount, t.currency)}
                 </td>
                 <td className="px-6 py-4">
                   {t.category === Category.SELF_TRANSFER || interFamilyTransferIds.has(t.id) ? (
@@ -276,7 +308,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       <CheckCircle size={10} /> EARNINGS
                     </span>
                   ) : (
-                    <span className="text-slate-400 text-[10px] font-bold">EXPENSES</span>
+                    <span className="text-rose-600 text-[10px] font-bold flex items-center gap-1">
+                      <TrendingDown size={10} /> EXPENSES
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 text-center">

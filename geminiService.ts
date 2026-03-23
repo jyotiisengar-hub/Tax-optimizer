@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType, Category } from "./types";
+import { Transaction, TransactionType, Category, BehavioralProfile } from "./types";
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -68,7 +68,8 @@ export const parseStatement = async (options: ParseOptions): Promise<Transaction
     IMPORTANT CATEGORIZATION RULES:
     1. Categories: Groceries, Utilities, Rent, Mortgage, Transport, Dining, Shopping, Health, Entertainment, Car Payment, Salary, Interest, Investment, Self Transfer, or Others.
     
-    2. SPECIFIC IDENTIFICATION:
+    3. SPECIFIC IDENTIFICATION:
+       - MORTGAGE: Any transaction related to mortgage payments, home loans, or property financing MUST be categorized as 'Mortgage' and its type MUST be 'EXPENSE'. It is NEVER an income.
        - INTEREST: Any credit transaction from the bank labeled as "Interest", "Savings Interest", "Int. Paid", usually occurring at month-end.
        - INVESTMENT: Any transaction involving Mutual Funds, SIPs, Brokerage transfers (e.g., Zerodha, Vanguard, Charles Schwab), or purchases of Stocks/Bonds.
     
@@ -227,5 +228,101 @@ export const getTaxSuggestions = async (transactions: Transaction[], country: st
     return data.suggestions;
   } catch (e) {
     return [];
+  }
+};
+
+export const getBehavioralProfile = async (transactions: Transaction[]): Promise<BehavioralProfile | null> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const transactionContext = transactions.map(t => ({
+    d: t.date,
+    m: t.merchant,
+    a: t.amount,
+    c: t.currency,
+    t: t.type,
+    cat: t.category
+  }));
+
+  const systemInstruction = `
+    You are a world-class behavioral finance AI embedded inside "Household CFO".
+    Your task is to analyze a user's financial transaction data and assign them scores (0–100) across multiple financial archetypes.
+    
+    Archetypes to evaluate and their detection heuristics:
+    1. Impulse Spender: Many small transactions, frequent discretionary categories.
+    2. Security Seeker: Consistent savings, low risk in spending.
+    3. Optimizer: High value-for-money, efficient spending.
+    4. Avoider: Lack of structured spending categories or financial engagement.
+    5. Status Spender: High-end brands, luxury categories.
+    6. Convenience Buyer: High share of delivery, cab, quick commerce.
+    7. Emotional Spender: Clusters of transactions within short time windows, late night spending patterns.
+    8. Aspirational Investor: Irregular investments.
+    9. Over-Optimizer: Frequent transfers, multiple accounts, reward chasing.
+    10. Lifestyle Inflator: Increase in monthly spend after income increase.
+    11. Social Spender: Weekend spikes, group expense categories.
+    12. Safety Hoarder: High balance retention, low investment outflows.
+    13. Goal-Oriented Planner: Structured saving and spending towards goals.
+    14. Subscription Drifter: Recurring payments across multiple services.
+
+    Scoring guidelines:
+    - 0–30: weak presence
+    - 31–60: moderate tendency
+    - 61–100: strong behavioral pattern
+
+    You must:
+    1. Detect behavioral signals from transaction patterns (frequency, categories, merchant types, timing).
+    2. Assign a score (0–100) for EACH of the 14 archetypes.
+    3. Provide a concise reasoning for each score based on the data.
+    4. Generate a short, insightful narrative (2-3 sentences) explaining the user's overall financial personality.
+    5. Suggest 2–3 actionable behavioral nudges (title and description) to improve their financial health.
+
+    Tone: Professional, insightful, and non-judgmental.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: [
+      { text: `Data: ${JSON.stringify(transactionContext)}` },
+      { text: "Analyze the transaction data and provide a comprehensive behavioral profile across all 14 archetypes." }
+    ],
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          archetypes: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                archetype: { type: Type.STRING },
+                score: { type: Type.NUMBER },
+                reasoning: { type: Type.STRING }
+              },
+              required: ['archetype', 'score', 'reasoning']
+            }
+          },
+          narrative: { type: Type.STRING },
+          nudges: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                description: { type: Type.STRING }
+              },
+              required: ['title', 'description']
+            }
+          }
+        },
+        required: ['archetypes', 'narrative', 'nudges']
+      }
+    },
+  });
+
+  try {
+    return JSON.parse(response.text || 'null');
+  } catch (e) {
+    return null;
   }
 };

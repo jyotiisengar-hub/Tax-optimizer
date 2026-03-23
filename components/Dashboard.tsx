@@ -1,17 +1,18 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
-import { Transaction, TransactionType, Category } from '../types';
+import { Transaction, TransactionType, Category, BehavioralProfile } from '../types';
 import { format, parseISO } from 'date-fns';
-import { TrendingDown, TrendingUp, Wallet, Calendar, ChevronRight, Calculator, ShieldCheck, Info } from 'lucide-react';
+import { TrendingDown, TrendingUp, Wallet, Calendar, ChevronRight, Calculator, ShieldCheck, Info, Brain } from 'lucide-react';
 
 interface DashboardProps {
   transactions: Transaction[];
   categoryColors: Record<string, string>;
   onMonthClick?: (month: string) => void;
+  behavioralProfile?: BehavioralProfile | null;
 }
 
 interface CurrencyStats {
@@ -23,17 +24,22 @@ interface CurrencyStats {
   duplicates: number;
 }
 
-const formatIndianNumber = (num: number) => {
+const formatCompactNumber = (num: number, currency: string) => {
   const absNum = Math.abs(num);
   const sign = num < 0 ? '-' : '';
-  if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
-  if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
-  return sign + absNum.toLocaleString('en-IN');
+  if (currency.toUpperCase() === 'INR') {
+    if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
+    if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
+    return sign + absNum.toLocaleString('en-IN');
+  }
+  if (absNum >= 1000000) return sign + (absNum / 1000000).toFixed(2) + 'M';
+  if (absNum >= 1000) return sign + (absNum / 1000).toFixed(2) + 'K';
+  return sign + absNum.toLocaleString('en-US');
 };
 
 const formatCurrency = (amount: number, currency: string) => {
   if (currency.toUpperCase() === 'INR') {
-    return '₹' + formatIndianNumber(amount);
+    return '₹' + formatCompactNumber(amount, 'INR');
   }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -43,7 +49,28 @@ const formatCurrency = (amount: number, currency: string) => {
   }).format(amount);
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColors, onMonthClick }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  transactions, 
+  categoryColors, 
+  onMonthClick,
+  behavioralProfile 
+}) => {
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(t => set.add(t.currency || 'USD'));
+    return Array.from(set).sort();
+  }, [transactions]);
+
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+
+  useEffect(() => {
+    if (currencies.length > 0 && !currencies.includes(selectedCurrency)) {
+      setSelectedCurrency(currencies[0]);
+    } else if (currencies.length > 0 && selectedCurrency === 'USD' && !currencies.includes('USD')) {
+      setSelectedCurrency(currencies[0]);
+    }
+  }, [currencies, selectedCurrency]);
+
   const interFamilyTransferIds = useMemo(() => {
     const ids = new Set<string>();
     const groups: Record<string, Transaction[]> = {};
@@ -102,12 +129,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
   const categoryData = useMemo(() => {
     const groups: Record<string, number> = {};
     transactions
-      .filter(t => t.type === TransactionType.EXPENSE && t.category !== Category.SELF_TRANSFER && !interFamilyTransferIds.has(t.id))
+      .filter(t => t.type === TransactionType.EXPENSE && t.category !== Category.SELF_TRANSFER && !interFamilyTransferIds.has(t.id) && (t.currency || 'USD') === selectedCurrency)
       .forEach(t => {
         groups[t.category] = (groups[t.category] || 0) + t.amount;
       });
     return Object.entries(groups).map(([name, value]) => ({ name, value }));
-  }, [transactions, interFamilyTransferIds]);
+  }, [transactions, interFamilyTransferIds, selectedCurrency]);
 
   const monthlySummary = useMemo(() => {
     const months: Record<string, Record<string, { in: number, out: number, tax: number, self: number }>> = {};
@@ -141,7 +168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
   const chartData = useMemo(() => {
     const groups: Record<string, { month: string, expense: number, inflow: number }> = {};
     transactions
-      .filter(t => t.category.toLowerCase().trim() !== Category.SELF_TRANSFER.toLowerCase().trim() && !interFamilyTransferIds.has(t.id))
+      .filter(t => t.category.toLowerCase().trim() !== Category.SELF_TRANSFER.toLowerCase().trim() && !interFamilyTransferIds.has(t.id) && (t.currency || 'USD') === selectedCurrency)
       .forEach(t => {
         const month = format(parseISO(t.date), 'MMM yy');
         if (!groups[month]) groups[month] = { month, expense: 0, inflow: 0 };
@@ -160,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
       const dateB = new Date(parseInt(y2) + 2000, months.indexOf(m2));
       return dateA.getTime() - dateB.getTime();
     });
-  }, [transactions]);
+  }, [transactions, interFamilyTransferIds, selectedCurrency]);
 
   const taxDeductions = useMemo(() => {
     return transactions
@@ -179,6 +206,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
 
   return (
     <div className="space-y-8">
+      {/* Behavioral Archetype Summary */}
+      {behavioralProfile && (
+        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6">
+          <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
+            <Brain className="text-blue-600" size={40} />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full w-fit mx-auto md:mx-0">
+                Primary Archetype
+              </span>
+              <h2 className="text-2xl font-bold text-slate-900">
+                {behavioralProfile.archetypes.sort((a, b) => b.score - a.score)[0]?.archetype || 'Analyzing...'}
+              </h2>
+            </div>
+            <p className="text-slate-600 text-sm leading-relaxed max-w-2xl">
+              {behavioralProfile.narrative}
+            </p>
+          </div>
+          <div className="flex gap-4">
+            {behavioralProfile.archetypes
+              .filter(a => ['Security Seeker', 'Impulse Spender'].includes(a.archetype))
+              .map(a => (
+                <div key={a.archetype} className="text-center px-4 py-2 bg-slate-50 rounded-2xl min-w-[80px]">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-1 truncate max-w-[80px]">
+                    {a.archetype.split(' ')[0]}
+                  </div>
+                  <div className="text-lg font-black text-slate-900">{a.score}</div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Deduction Tracker Dashboard Section */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
@@ -256,12 +317,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
               </div>
               <div className="p-4 border-l border-slate-50">
                 <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingUp size={14} className="text-emerald-500" /><span className="text-xs font-medium uppercase">Earnings</span></div>
-                <div className="text-xl font-bold text-slate-900">{formatCurrency(s.totalIn, currency)}</div>
+                <div className="text-xl font-bold text-emerald-600">{formatCurrency(s.totalIn, currency)}</div>
               </div>
               <div className="p-4 border-l border-slate-50">
                 <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingDown size={14} className="text-rose-500" /><span className="text-xs font-medium uppercase">Expenses</span></div>
                 <div className="flex items-baseline gap-2">
-                  <div className="text-xl font-bold text-slate-900">{formatCurrency(s.totalOut, currency)}</div>
+                  <div className="text-xl font-bold text-rose-600">{formatCurrency(s.totalOut, currency)}</div>
                 </div>
               </div>
               <div className="p-4 border-l border-slate-50">
@@ -279,6 +340,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
             </div>
           );
         })}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Detailed Analytics</h3>
+        {currencies.length > 1 && (
+          <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
+            {currencies.map(cur => (
+              <button
+                key={cur}
+                onClick={() => setSelectedCurrency(cur)}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${selectedCurrency === cur ? 'bg-blue-600 text-white shadow-md shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                {cur}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -305,11 +383,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
                   axisLine={false} 
                   tickLine={false} 
                   tick={{fill: '#64748b', fontSize: 10}} 
-                  tickFormatter={formatIndianNumber}
+                  tickFormatter={(val) => formatCompactNumber(val, selectedCurrency)}
                 />
                 <Tooltip 
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
-                  formatter={(value: number) => [formatIndianNumber(value), '']}
+                  formatter={(value: number) => [formatCompactNumber(value, selectedCurrency), '']}
                 />
                 <Line type="monotone" dataKey="inflow" name="Earnings" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="expense" name="Expenses" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
@@ -334,7 +412,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryColo
                 />
                 <Tooltip 
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
-                  formatter={(value: number) => formatCurrency(value, 'USD')}
+                  formatter={(value: number) => formatCurrency(value, selectedCurrency)}
                 />
                 <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]} barSize={20}>
                   {categoryData.map((entry, index) => (

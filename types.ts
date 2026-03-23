@@ -101,3 +101,18 @@ export interface FileProgress {
   name: string;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
 }
+
+export interface ArchetypeScore {
+  archetype: string;
+  score: number;
+  reasoning: string;
+}
+
+export interface BehavioralProfile {
+  archetypes: ArchetypeScore[];
+  narrative: string;
+  nudges: {
+    title: string;
+    description: string;
+  }[];
+}

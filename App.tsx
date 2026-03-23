@@ -16,10 +16,13 @@ import {
   Download,
   Upload,
   Users,
+  Brain,
   Store,
   ArrowRight,
   ShieldCheck,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Scale,
   Sparkles,
   MessageSquare,
@@ -34,9 +37,11 @@ import { FamilyDirectory } from './components/FamilyDirectory';
 import { CategoryManager } from './components/CategoryManager';
 import { ChatInterface } from './components/ChatInterface';
 import { TaxSuggestions } from './components/TaxSuggestions';
+import { BehavioralIntelligence } from './components/BehavioralIntelligence';
 import { TaxAnalytics } from './components/TaxAnalytics';
+import { motion, AnimatePresence } from 'motion/react';
 import { TaxLogic, Country } from './components/TaxLogic';
-import { Transaction, StatementFile, KnowledgeBaseExport, Category, MerchantRule, ProcessSummary, FileProgress, FamilyMember, Nudge, TransactionType } from './types';
+import { Transaction, StatementFile, KnowledgeBaseExport, Category, MerchantRule, ProcessSummary, FileProgress, FamilyMember, Nudge, TransactionType, BehavioralProfile } from './types';
 import { 
   getTransactions, 
   saveTransactions, 
@@ -53,7 +58,7 @@ import {
   initDB
 } from './db';
 import * as XLSX from 'xlsx';
-import { parseStatement } from './geminiService';
+import { parseStatement, getTaxSuggestions, getBehavioralProfile } from './geminiService';
 
 const normalizePersonName = (name: string, existingTransactions: Transaction[]): string => {
   if (!name) return 'Unknown';
@@ -106,6 +111,21 @@ const App: React.FC = () => {
   const [initialMonthFilter, setInitialMonthFilter] = useState<string | null>(null);
   const [personSearchFilter, setPersonSearchFilter] = useState<string | null>(null);
   const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [behavioralProfile, setBehavioralProfile] = useState<BehavioralProfile | null>(null);
+  const [showFamilyDirectory, setShowFamilyDirectory] = useState(false);
+
+  useEffect(() => {
+    const fetchBehavioralProfile = async () => {
+      if (transactions.length === 0) return;
+      try {
+        const profile = await getBehavioralProfile(transactions);
+        if (profile) setBehavioralProfile(profile);
+      } catch (err) {
+        console.error("Failed to fetch behavioral profile:", err);
+      }
+    };
+    fetchBehavioralProfile();
+  }, [transactions.length]);
 
   // Behavioral Nudge Engine: Detect Salary and Generate Nudges
   useEffect(() => {
@@ -448,17 +468,11 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <aside className="w-full md:w-64 bg-white border-r border-slate-100 flex flex-col p-6 gap-8">
         <div onClick={() => setActiveTab('family')} className="flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform">
-            <Sparkles size={20} />
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform">
+            <Brain size={20} />
           </div>
           <div className="flex-1 overflow-hidden">
             <h1 className="font-bold text-slate-900 truncate">Household CFO</h1>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isSaving ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`} />
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                {isSaving ? 'Optimizing...' : 'AI Active'}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -473,7 +487,7 @@ const App: React.FC = () => {
             <MessageSquare size={20} /> Finance Assistant
           </button>
           <button onClick={() => setActiveTab('family')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'family' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <Users size={20} /> Profile
+            <Brain size={20} /> Behavioral Insights
           </button>
 
           <div className="mt-4 mb-2 px-4">
@@ -506,13 +520,12 @@ const App: React.FC = () => {
       <main className="flex-1 p-6 md:p-10 overflow-y-auto max-h-screen">
         <header className="flex items-center justify-between mb-10">
           <div>
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Financial Optimization</h2>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-slate-900">
                 {activeTab === 'dashboard' && 'Financial Dashboard'}
                 {activeTab === 'deductions' && 'Tax Deductions'}
                 {activeTab === 'expenses' && 'Household Expenses'}
-                {activeTab === 'family' && 'User Profile'}
+                {activeTab === 'family' && 'Behavioral Intelligence'}
                 {activeTab === 'history' && 'Statement Archive'}
                 {activeTab === 'upload' && 'Import Statements'}
                 {activeTab === 'knowledge' && 'Grounding data'}
@@ -532,6 +545,7 @@ const App: React.FC = () => {
             <Dashboard 
               transactions={transactions} 
               categoryColors={categoryColors}
+              behavioralProfile={behavioralProfile}
               onMonthClick={(month) => { 
                 if (month === 'deductions') {
                   setInitialMonthFilter(null);
@@ -541,13 +555,6 @@ const App: React.FC = () => {
                   setActiveTab('expenses'); 
                 }
               }} 
-            />
-            <div className="h-px bg-slate-100 w-full" />
-            <TaxSuggestions 
-              transactions={transactions} 
-              nudges={nudges}
-              onDismissNudge={handleDismissNudge}
-              onActionNudge={handleActionNudge}
             />
           </div>
         )}
@@ -571,13 +578,50 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'family' && (
-          <FamilyDirectory 
-            transactions={transactions} 
-            statements={statements}
-            familyMembers={familyMembers}
-            onAddMember={handleAddFamilyMember}
-            onViewTransactions={handleViewPersonActivity}
-          />
+          <div className="space-y-12">
+            <BehavioralIntelligence transactions={transactions} profile={behavioralProfile} />
+            
+            <div className="pt-8 border-t border-slate-100">
+              <button 
+                onClick={() => setShowFamilyDirectory(!showFamilyDirectory)}
+                className="w-full flex items-center justify-between p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users size={24} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-lg font-bold text-slate-900">Family & Entity Directory</h3>
+                    <p className="text-sm text-slate-500">Manage family members and identified financial entities</p>
+                  </div>
+                </div>
+                <div className="text-slate-400">
+                  {showFamilyDirectory ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {showFamilyDirectory && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-8">
+                      <FamilyDirectory 
+                        transactions={transactions} 
+                        statements={statements}
+                        familyMembers={familyMembers}
+                        onAddMember={handleAddFamilyMember}
+                        onViewTransactions={handleViewPersonActivity}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         )}
 
         {activeTab === 'upload' && (
