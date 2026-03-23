@@ -483,9 +483,6 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('tax')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'tax' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Sparkles size={20} /> Opportunities
           </button>
-          <button onClick={() => setActiveTab('chat')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <MessageSquare size={20} /> Finance Assistant
-          </button>
           <button onClick={() => setActiveTab('family')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'family' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Brain size={20} /> Behavioral Insights
           </button>
@@ -511,6 +508,9 @@ const App: React.FC = () => {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">System</p>
           </div>
 
+          <button onClick={() => setActiveTab('chat')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
+            <MessageSquare size={20} /> Finance Assistant
+          </button>
           <button onClick={() => setActiveTab('knowledge')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'knowledge' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <Database size={20} /> Knowledge Base
           </button>

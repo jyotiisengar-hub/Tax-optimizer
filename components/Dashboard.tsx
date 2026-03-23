@@ -240,6 +240,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Tax & Income Summary</h3>
+        {Object.entries(statsByCurrency).map(([currency, stats]) => {
+          const s = stats as CurrencyStats;
+          return (
+            <div key={currency} className="grid grid-cols-1 md:grid-cols-6 gap-4 bg-white p-2 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="p-4 flex flex-col justify-center">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Currency</div>
+                <div className="text-lg font-bold text-blue-600">{currency}</div>
+              </div>
+              <div className="p-4 border-l border-slate-50">
+                <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingUp size={14} className="text-emerald-500" /><span className="text-xs font-medium uppercase">Earnings</span></div>
+                <div className="text-xl font-bold text-emerald-600">{formatCurrency(s.totalIn, currency)}</div>
+              </div>
+              <div className="p-4 border-l border-slate-50">
+                <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingDown size={14} className="text-rose-500" /><span className="text-xs font-medium uppercase">Expenses</span></div>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-xl font-bold text-rose-600">{formatCurrency(s.totalOut, currency)}</div>
+                </div>
+              </div>
+              <div className="p-4 border-l border-slate-50">
+                <div className="flex items-center gap-2 text-slate-500 mb-1"><Calculator size={14} className="text-amber-500" /><span className="text-xs font-medium uppercase">Tax Paid</span></div>
+                <div className="text-xl font-bold text-slate-900">{formatCurrency(s.totalTax, currency)}</div>
+              </div>
+              <div className="p-4 border-l border-slate-50">
+                <div className="flex items-center gap-2 text-slate-500 mb-1"><Wallet size={14} className="text-blue-500" /><span className="text-xs font-medium uppercase">Net Balance</span></div>
+                <div className={`text-xl font-bold ${s.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(s.balance, currency)}</div>
+              </div>
+              <div className="p-4 border-l border-slate-50">
+                <div className="flex items-center gap-2 text-slate-500 mb-1"><ChevronRight size={14} className="text-slate-400" /><span className="text-xs font-medium uppercase">Transfers</span></div>
+                <div className="text-xl font-bold text-slate-400">{formatCurrency(s.totalSelf, currency)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Deduction Tracker Dashboard Section */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
@@ -303,43 +340,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Tax & Income Summary</h3>
-        {Object.entries(statsByCurrency).map(([currency, stats]) => {
-          const s = stats as CurrencyStats;
-          return (
-            <div key={currency} className="grid grid-cols-1 md:grid-cols-6 gap-4 bg-white p-2 rounded-3xl border border-slate-100 shadow-sm">
-              <div className="p-4 flex flex-col justify-center">
-                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Currency</div>
-                <div className="text-lg font-bold text-blue-600">{currency}</div>
-              </div>
-              <div className="p-4 border-l border-slate-50">
-                <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingUp size={14} className="text-emerald-500" /><span className="text-xs font-medium uppercase">Earnings</span></div>
-                <div className="text-xl font-bold text-emerald-600">{formatCurrency(s.totalIn, currency)}</div>
-              </div>
-              <div className="p-4 border-l border-slate-50">
-                <div className="flex items-center gap-2 text-slate-500 mb-1"><TrendingDown size={14} className="text-rose-500" /><span className="text-xs font-medium uppercase">Expenses</span></div>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-xl font-bold text-rose-600">{formatCurrency(s.totalOut, currency)}</div>
-                </div>
-              </div>
-              <div className="p-4 border-l border-slate-50">
-                <div className="flex items-center gap-2 text-slate-500 mb-1"><Calculator size={14} className="text-amber-500" /><span className="text-xs font-medium uppercase">Tax Paid</span></div>
-                <div className="text-xl font-bold text-slate-900">{formatCurrency(s.totalTax, currency)}</div>
-              </div>
-              <div className="p-4 border-l border-slate-50">
-                <div className="flex items-center gap-2 text-slate-500 mb-1"><Wallet size={14} className="text-blue-500" /><span className="text-xs font-medium uppercase">Net Balance</span></div>
-                <div className={`text-xl font-bold ${s.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(s.balance, currency)}</div>
-              </div>
-              <div className="p-4 border-l border-slate-50">
-                <div className="flex items-center gap-2 text-slate-500 mb-1"><ChevronRight size={14} className="text-slate-400" /><span className="text-xs font-medium uppercase">Transfers</span></div>
-                <div className="text-xl font-bold text-slate-400">{formatCurrency(s.totalSelf, currency)}</div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       <div className="flex items-center justify-between">

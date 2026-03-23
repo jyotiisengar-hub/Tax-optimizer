@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { Transaction, TransactionType, Category, BehavioralProfile } from "./types";
 
 const responseSchema = {
@@ -32,8 +32,8 @@ interface ParseOptions {
 }
 
 export const parseStatement = async (options: ParseOptions): Promise<Transaction[]> => {
-  // Use process.env.API_KEY directly and initialize right before use
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Use process.env.GEMINI_API_KEY directly and initialize right before use
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const { base64Data, mimeType, textData } = options;
   
   const parts: any[] = [];
@@ -88,7 +88,7 @@ export const parseStatement = async (options: ParseOptions): Promise<Transaction
     config: {
       responseMimeType: "application/json",
       responseSchema: responseSchema,
-      thinkingConfig: { thinkingBudget: 0 } 
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } 
     },
   });
 
@@ -104,7 +104,7 @@ export const parseStatement = async (options: ParseOptions): Promise<Transaction
 };
 
 export const queryKnowledgeBase = async (transactions: Transaction[], query: string, history: { role: 'user' | 'assistant', content: string }[] = [], country: string = 'USA'): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
   // Prepare a condensed version of transactions to save tokens while providing enough info
   const transactionContext = transactions.map(t => ({
@@ -161,6 +161,7 @@ export const queryKnowledgeBase = async (transactions: Transaction[], query: str
     config: {
       systemInstruction,
       temperature: 0.2, // Low temperature for factual accuracy
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     },
   });
 
@@ -168,9 +169,14 @@ export const queryKnowledgeBase = async (transactions: Transaction[], query: str
 };
 
 export const getTaxSuggestions = async (transactions: Transaction[], country: string = 'USA'): Promise<{ id: string, title: string, description: string, category: string }[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
-  const transactionContext = transactions.map(t => ({
+  // Limit transactions to the most recent 300 to speed up analysis
+  const recentTransactions = [...transactions]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 300);
+
+  const transactionContext = recentTransactions.map(t => ({
     d: t.date,
     m: t.merchant,
     p: t.person,
@@ -201,6 +207,7 @@ export const getTaxSuggestions = async (transactions: Transaction[], country: st
     config: {
       systemInstruction,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -232,9 +239,14 @@ export const getTaxSuggestions = async (transactions: Transaction[], country: st
 };
 
 export const getBehavioralProfile = async (transactions: Transaction[]): Promise<BehavioralProfile | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
-  const transactionContext = transactions.map(t => ({
+  // Limit transactions to the most recent 200 to speed up analysis and avoid token limits
+  const recentTransactions = [...transactions]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 200);
+
+  const transactionContext = recentTransactions.map(t => ({
     d: t.date,
     m: t.merchant,
     a: t.amount,
@@ -273,7 +285,7 @@ export const getBehavioralProfile = async (transactions: Transaction[]): Promise
     2. Assign a score (0–100) for EACH of the 14 archetypes.
     3. Provide a concise reasoning for each score based on the data.
     4. Generate a short, insightful narrative (2-3 sentences) explaining the user's overall financial personality.
-    5. Suggest 2–3 actionable behavioral nudges (title and description) to improve their financial health.
+    5. Suggest at least 4 actionable behavioral nudges (title and description) to improve their financial health.
 
     Tone: Professional, insightful, and non-judgmental.
   `;
@@ -287,6 +299,7 @@ export const getBehavioralProfile = async (transactions: Transaction[]): Promise
     config: {
       systemInstruction,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseSchema: {
         type: Type.OBJECT,
         properties: {
