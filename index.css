@@ -35,3 +35,8 @@
 .markdown-body li {
   margin-bottom: 0.25rem;
 }
+
+.markdown-body u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

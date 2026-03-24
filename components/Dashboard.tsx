@@ -5,6 +5,8 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 import { Transaction, TransactionType, Category, BehavioralProfile } from '../types';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { format, parseISO } from 'date-fns';
 import { TrendingDown, TrendingUp, Wallet, Calendar, ChevronRight, Calculator, ShieldCheck, Info, Brain } from 'lucide-react';
 
@@ -221,9 +223,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {behavioralProfile.archetypes.sort((a, b) => b.score - a.score)[0]?.archetype || 'Analyzing...'}
               </h2>
             </div>
-            <p className="text-slate-600 text-sm leading-relaxed max-w-2xl">
-              {behavioralProfile.narrative}
-            </p>
+            <div className="text-slate-600 text-sm leading-relaxed max-w-2xl markdown-body">
+              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                {behavioralProfile.narrative}
+              </ReactMarkdown>
+            </div>
           </div>
           <div className="flex gap-4">
             {behavioralProfile.archetypes

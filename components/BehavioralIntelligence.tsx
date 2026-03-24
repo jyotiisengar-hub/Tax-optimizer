@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { 
   Brain, 
   Target, 
@@ -22,6 +20,8 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { Transaction, BehavioralProfile } from '../types';
 import { getBehavioralProfile } from '../geminiService';
 
@@ -160,8 +160,8 @@ export const BehavioralIntelligence: React.FC<BehavioralIntelligenceProps> = ({ 
             <Sparkles size={18} className="text-blue-600" />
             <span className="text-xs font-black uppercase tracking-widest text-blue-600">AI Narrative</span>
           </div>
-          <div className="text-lg font-medium text-slate-800 leading-relaxed italic markdown-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <div className="text-lg font-medium text-slate-800 leading-relaxed italic markdown-body max-w-none">
+            <ReactMarkdown rehypePlugins={[rehypeRaw]}>
               {profile.narrative}
             </ReactMarkdown>
           </div>
