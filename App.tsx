@@ -500,9 +500,6 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('deductions')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'deductions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
             <ShieldCheck size={20} /> Deductions
           </button>
-          <button onClick={() => setActiveTab('history')} className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === 'history' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <History size={20} /> Upload History
-          </button>
 
           <div className="mt-4 mb-2 px-4">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">System</p>
@@ -526,8 +523,7 @@ const App: React.FC = () => {
                 {activeTab === 'deductions' && 'Tax Deductions'}
                 {activeTab === 'expenses' && 'Household Expenses'}
                 {activeTab === 'family' && 'Behavioral Intelligence'}
-                {activeTab === 'history' && 'Statement Archive'}
-                {activeTab === 'upload' && 'Import Statements'}
+                {activeTab === 'upload' && 'Add Statements'}
                 {activeTab === 'knowledge' && 'Grounding data'}
                 {activeTab === 'chat' && 'AI Finance Assistant'}
                 {activeTab === 'tax' && 'Financial Opportunities'}
@@ -625,31 +621,69 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'upload' && (
-          <div className="max-w-2xl mx-auto py-10 space-y-8">
-            <FileUpload 
-              onUpload={processFiles}
-              onProcessed={handleProcessed} 
-              existingTransactions={transactions}
-              existingStatements={statements}
-              merchantRules={merchantRules}
-              isProcessing={uploadIsProcessing}
-              setIsProcessing={setUploadIsProcessing}
-              summary={uploadSummary}
-              setSummary={setUploadSummary}
-              progress={uploadProgress}
-              setProgress={setUploadProgress}
-              error={uploadError}
-              setError={setUploadError}
-            />
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                <AlertTriangle size={20} />
+          <div className="max-w-4xl mx-auto py-10 space-y-16">
+            <div className="max-w-2xl mx-auto space-y-8">
+              <FileUpload 
+                onUpload={processFiles}
+                onProcessed={handleProcessed} 
+                existingTransactions={transactions}
+                existingStatements={statements}
+                merchantRules={merchantRules}
+                isProcessing={uploadIsProcessing}
+                setIsProcessing={setUploadIsProcessing}
+                summary={uploadSummary}
+                setSummary={setUploadSummary}
+                progress={uploadProgress}
+                setProgress={setUploadProgress}
+                error={uploadError}
+                setError={setUploadError}
+              />
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-amber-900 mb-1">Privacy Recommendation</h4>
+                  <p className="text-sm text-amber-800 leading-relaxed">
+                    Users are encouraged to upload <span className="font-bold underline decoration-amber-300">sample or redacted</span> financial statements when testing the prototype.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-amber-900 mb-1">Privacy Recommendation</h4>
-                <p className="text-sm text-amber-800 leading-relaxed">
-                  Users are encouraged to upload <span className="font-bold underline decoration-amber-300">sample or redacted</span> financial statements when testing the prototype.
-                </p>
+            </div>
+
+            <div className="space-y-8 pt-12 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black text-slate-900">Upload History</h2>
+                <span className="text-sm text-slate-400 font-medium">{statements.length} files in database</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {statements.map(s => (
+                  <div key={s.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm group hover:shadow-md transition-all">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-500"><FileText size={24} /></div>
+                      <button onClick={() => handleDeleteStatement(s.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-bold text-slate-900 truncate" title={s.name}>{s.name}</h4>
+                      {s.person && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+                          {s.person}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mb-4">Processed on {new Date(s.processedDate || '').toLocaleDateString()}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transactions</span>
+                      <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg">+{s.transactionCount}</span>
+                    </div>
+                  </div>
+                ))}
+                {statements.length === 0 && (
+                  <div className="col-span-full py-12 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                    <p className="text-slate-400 font-medium">No statements processed yet.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -675,37 +709,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">Processed Statements</h3>
-              <span className="text-sm text-slate-400 font-medium">{statements.length} files in database</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {statements.map(s => (
-                <div key={s.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm group hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-500"><FileText size={24} /></div>
-                    <button onClick={() => handleDeleteStatement(s.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
-                  </div>
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-bold text-slate-900 truncate" title={s.name}>{s.name}</h4>
-                    {s.person && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200">
-                        {s.person}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-400 mb-4">Processed on {new Date(s.processedDate || '').toLocaleDateString()}</p>
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transactions</span>
-                    <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg">+{s.transactionCount}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {activeTab === 'knowledge' && (
           <div className="max-w-4xl mx-auto space-y-8">

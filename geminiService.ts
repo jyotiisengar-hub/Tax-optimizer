@@ -284,7 +284,7 @@ export const getBehavioralProfile = async (transactions: Transaction[]): Promise
     1. Detect behavioral signals from transaction patterns (frequency, categories, merchant types, timing).
     2. Assign a score (0–100) for EACH of the 14 archetypes.
     3. Provide a concise reasoning for each score based on the data.
-    4. Generate a short, insightful narrative (2-3 sentences) explaining the user's overall financial personality.
+    4. Generate a short, insightful narrative (2-3 sentences) explaining the user's overall financial personality, explicitly mentioning the names of the dominant archetype(s) identified and making them **bold** using Markdown.
     5. Suggest at least 4 actionable behavioral nudges (title and description) to improve their financial health.
 
     Tone: Professional, insightful, and non-judgmental.

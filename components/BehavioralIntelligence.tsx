@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Brain, 
   Target, 
@@ -158,9 +160,11 @@ export const BehavioralIntelligence: React.FC<BehavioralIntelligenceProps> = ({ 
             <Sparkles size={18} className="text-blue-600" />
             <span className="text-xs font-black uppercase tracking-widest text-blue-600">AI Narrative</span>
           </div>
-          <p className="text-lg font-medium text-slate-800 leading-relaxed italic">
-            "{profile.narrative}"
-          </p>
+          <div className="text-lg font-medium text-slate-800 leading-relaxed italic markdown-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {profile.narrative}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
 
