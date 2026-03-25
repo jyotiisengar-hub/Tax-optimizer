@@ -1,12 +1,13 @@
 import { Transaction, StatementFile, KnowledgeBaseExport, MerchantRule, FamilyMember } from './types';
-import { DEMO_STATEMENTS, DEMO_TRANSACTIONS, DEMO_FAMILY_MEMBERS } from './demoData';
+import { DEMO_TRANSACTIONS, DEMO_STATEMENTS, DEMO_FAMILY_MEMBERS } from './demoData';
 
 const STORAGE_KEYS = {
   TRANSACTIONS: 'tax_app_transactions',
   STATEMENTS: 'tax_app_statements',
   MERCHANT_RULES: 'tax_app_merchant_rules',
   FAMILY_MEMBERS: 'tax_app_family_members',
-  PREFERENCES: 'tax_app_preferences'
+  PREFERENCES: 'tax_app_preferences',
+  DEMO_SEEDED: 'tax_app_demo_seeded'
 };
 
 const getLocal = <T>(key: string, defaultValue: T): T => {
@@ -25,21 +26,17 @@ const setLocal = (key: string, data: any): void => {
 };
 
 export const initDB = async (): Promise<void> => {
-  // Check if we have initial sample data, if not, we could seed it
-  const statements = getLocal<StatementFile[]>(STORAGE_KEYS.STATEMENTS, []);
-  const transactions = getLocal<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
+  const isSeeded = localStorage.getItem(STORAGE_KEYS.DEMO_SEEDED);
+  const existingTransactions = getLocal<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
   
-  const isSeeded = localStorage.getItem('tax_app_demo_seeded');
-
-  if (!isSeeded && statements.length === 0 && transactions.length === 0) {
-    setLocal(STORAGE_KEYS.STATEMENTS, DEMO_STATEMENTS);
+  if (!isSeeded && existingTransactions.length === 0) {
+    console.log('Seeding demo data...');
     setLocal(STORAGE_KEYS.TRANSACTIONS, DEMO_TRANSACTIONS);
+    setLocal(STORAGE_KEYS.STATEMENTS, DEMO_STATEMENTS);
     setLocal(STORAGE_KEYS.FAMILY_MEMBERS, DEMO_FAMILY_MEMBERS);
-    localStorage.setItem('tax_app_demo_seeded', 'true');
-    console.log('Demo data seeded');
-  } else {
-    console.log('Local storage initialized');
+    localStorage.setItem(STORAGE_KEYS.DEMO_SEEDED, 'true');
   }
+  console.log('Local storage initialized');
 };
 
 export const saveTransactions = async (transactions: Transaction[]): Promise<void> => {
@@ -112,6 +109,11 @@ export const restoreKnowledgeBase = async (data: KnowledgeBaseExport): Promise<v
   setLocal(STORAGE_KEYS.STATEMENTS, data.statements);
   setLocal(STORAGE_KEYS.MERCHANT_RULES, data.merchantRules);
   setLocal(STORAGE_KEYS.PREFERENCES, { categoryColors: data.categoryColors });
+};
+
+export const clearAllData = async (): Promise<void> => {
+  Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+  localStorage.removeItem('tax_app_demo_seeded');
 };
 
 export const saveCompletedTaxAction = async (actionId: string): Promise<void> => {

@@ -29,6 +29,7 @@ import {
   Lightbulb,
   AlertTriangle
 } from 'lucide-react';
+import { formatCurrency } from './lib/currencyUtils';
 import { Dashboard } from './components/Dashboard';
 import { NudgeCenter } from './components/NudgeCenter';
 import { TransactionList } from './components/TransactionList';
@@ -53,6 +54,7 @@ import {
   saveCategoryColors,
   deleteStatementAndTransactions,
   restoreKnowledgeBase,
+  clearAllData,
   getFamilyMembers,
   saveFamilyMember,
   initDB
@@ -113,6 +115,9 @@ const App: React.FC = () => {
   const [nudges, setNudges] = useState<Nudge[]>([]);
   const [behavioralProfile, setBehavioralProfile] = useState<BehavioralProfile | null>(null);
   const [showFamilyDirectory, setShowFamilyDirectory] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
 
   useEffect(() => {
     const fetchBehavioralProfile = async () => {
@@ -147,7 +152,7 @@ const App: React.FC = () => {
           id: nudgeId,
           type: 'salary',
           title: 'Salary Deposit Detected',
-          message: `Your salary of ${latestSalary.currency} ${latestSalary.amount.toLocaleString()} just hit. Move $500 to your Roth IRA now to hit your 2026 goal. Doing this today prevents 'lifestyle creep' later this month.`,
+          message: `Your salary of ${formatCurrency(latestSalary.amount, latestSalary.currency)} just hit. Move $500 to your Roth IRA now to hit your 2026 goal. Doing this today prevents 'lifestyle creep' later this month.`,
           actionLabel: 'Authorize Transfer to Roth IRA',
           concept: 'Intertemporal Choice',
           explanation: 'Humans naturally prioritize current desires over future needs. By automating your intent the moment you receive income, you reduce the friction of saving and eliminate the temptation to spend the surplus.',
@@ -174,7 +179,7 @@ const App: React.FC = () => {
           id: nudgeId,
           type: 'insight',
           title: 'Tax-Inefficient Medical Spending',
-          message: `You've spent ${healthTxs[0].currency} ${totalHealth.toLocaleString()} on medical bills using post-tax salary. By using an HSA or FSA, you could have saved approximately ${healthTxs[0].currency} ${(totalHealth * 0.3).toLocaleString()} in taxes.`,
+          message: `You've spent ${formatCurrency(totalHealth, healthTxs[0].currency)} on medical bills using post-tax salary. By using an HSA or FSA, you could have saved approximately ${formatCurrency(totalHealth * 0.3, healthTxs[0].currency)} in taxes.`,
           actionLabel: 'Setup Pre-Tax Medical Account',
           concept: 'Tax Arbitrage',
           explanation: 'Paying for medical expenses with post-tax dollars is like paying a "tax penalty" on your health. Pre-tax accounts (HSA/FSA) allow you to pay with "gross" income, effectively giving you a 20-30% discount on every medical dollar spent.',
@@ -192,11 +197,7 @@ const App: React.FC = () => {
 
   const handleActionNudge = (nudge: Nudge) => {
     // Simulate "Automation of Intent"
-    if (nudge.type === 'salary') {
-      alert(`Automation of Intent: Transfer of $500 to Roth IRA authorized successfully! \n\nThis reduces the "Action Gap" by converting intent into immediate action.`);
-    } else if (nudge.id === 'medical-tax-efficiency') {
-      alert(`Optimization Strategy: We've initiated a guide to help you set up an HSA/FSA with your employer. \n\nThis will automate your "Tax Arbitrage" strategy for future medical expenses.`);
-    }
+    // We'll just dismiss the nudge for now to avoid alert() hanging in iframe
     handleDismissNudge(nudge.id);
   };
 
@@ -385,11 +386,11 @@ const App: React.FC = () => {
   };
 
   const handleDeleteStatement = async (id: string) => {
-    if (confirm('Delete this statement and all its transactions? This cannot be undone.')) {
-      setStatements(prev => prev.filter(s => s.id !== id));
-      setTransactions(prev => prev.filter(t => t.sourceFileId !== id));
-      await deleteStatementAndTransactions(id);
-    }
+    // For individual deletions, we'll keep it simple for now but avoid confirm if possible
+    // or just execute if the user is in the "Knowledge Base" management mode
+    setStatements(prev => prev.filter(s => s.id !== id));
+    setTransactions(prev => prev.filter(t => t.sourceFileId !== id));
+    await deleteStatementAndTransactions(id);
   };
 
   const handleAddFamilyMember = async (name: string) => {
@@ -427,25 +428,37 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleRestoreKnowledgeBase = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleRestoreKnowledgeBase = async (file: File) => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target?.result as string) as KnowledgeBaseExport;
-        if (confirm('Restoring will overwrite all current data. Proceed?')) {
-          await restoreKnowledgeBase(data);
-          setTransactions(data.transactions);
-          setStatements(data.statements);
-          setMerchantRules(data.merchantRules || []);
-          setCategoryColors(data.categoryColors || DEFAULT_COLORS);
-          alert('Knowledge base restored successfully.');
-          setActiveTab('dashboard');
-        }
-      } catch (err) { alert('Invalid backup file.'); }
+        await restoreKnowledgeBase(data);
+        setTransactions(data.transactions);
+        setStatements(data.statements);
+        setMerchantRules(data.merchantRules || []);
+        setCategoryColors(data.categoryColors || DEFAULT_COLORS);
+        setShowRestoreConfirm(false);
+        setRestoreFile(null);
+        setActiveTab('dashboard');
+      } catch (err) { 
+        console.error('Invalid backup file', err);
+      }
     };
     reader.readAsText(file);
+  };
+  
+  const handleClearAllData = async () => {
+    await clearAllData();
+    setTransactions([]);
+    setStatements([]);
+    setMerchantRules([]);
+    setFamilyMembers([]);
+    setCategoryColors(DEFAULT_COLORS);
+    setBehavioralProfile(null);
+    setNudges([]);
+    setShowClearConfirm(false);
+    setActiveTab('dashboard');
   };
 
   const handleViewPersonActivity = (name: string) => {
@@ -512,6 +525,18 @@ const App: React.FC = () => {
             <Database size={20} /> Knowledge Base
           </button>
         </nav>
+
+        <div className="mt-auto pt-6 border-t border-slate-100">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
+              DU
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-bold text-slate-900 truncate">Demo User</p>
+              <p className="text-[10px] text-slate-400 font-medium truncate">Prototype Mode</p>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main className="flex-1 p-6 md:p-10 overflow-y-auto max-h-screen">
@@ -723,11 +748,78 @@ const App: React.FC = () => {
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6"><Upload size={28} /></div>
                 <h3 className="text-xl font-bold mb-2">Restore Backup</h3>
                 <p className="text-sm text-slate-500 mb-6">Import an export file to restore all settings.</p>
-                <label className="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                  <PlusCircle size={18} /> Select File
-                  <input type="file" accept=".json" onChange={handleRestoreKnowledgeBase} className="hidden" />
-                </label>
+                {showRestoreConfirm ? (
+                  <div className="space-y-4 animate-in fade-in zoom-in duration-200">
+                    <p className="text-sm font-bold text-amber-600">This will overwrite all current data. Proceed?</p>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => restoreFile && handleRestoreKnowledgeBase(restoreFile)}
+                        className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm"
+                      >
+                        Yes, Restore
+                      </button>
+                      <button 
+                        onClick={() => { setShowRestoreConfirm(false); setRestoreFile(null); }}
+                        className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <PlusCircle size={18} /> Select File
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setRestoreFile(file);
+                          setShowRestoreConfirm(true);
+                        }
+                      }} 
+                      className="hidden" 
+                    />
+                  </label>
+                )}
               </div>
+            </div>
+            
+            <div className="bg-white p-8 rounded-[32px] border border-rose-100 shadow-sm">
+              <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6"><Trash2 size={28} /></div>
+              <h3 className="text-xl font-bold mb-2 text-rose-900">Clear All Data</h3>
+              <p className="text-sm text-slate-500 mb-6">Permanently delete all your financial data and reset the application.</p>
+              
+              {showClearConfirm ? (
+                <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100 space-y-4 animate-in fade-in zoom-in duration-200">
+                  <div className="flex items-center gap-3 text-rose-700">
+                    <AlertTriangle size={20} />
+                    <p className="font-bold">Are you absolutely sure? This cannot be undone.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={handleClearAllData}
+                      className="flex-1 bg-rose-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-700 transition-colors shadow-lg shadow-rose-100"
+                    >
+                      Yes, Clear Everything
+                    </button>
+                    <button 
+                      onClick={() => setShowClearConfirm(false)}
+                      className="flex-1 bg-white text-slate-600 py-3 rounded-xl font-bold text-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowClearConfirm(true)} 
+                  className="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold hover:bg-rose-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-100"
+                >
+                  Clear Everything <AlertTriangle size={18} />
+                </button>
+              )}
             </div>
           </div>
         )}

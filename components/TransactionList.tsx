@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { formatCurrency } from '../lib/currencyUtils';
 import { Transaction, TransactionType, Category } from '../types';
 import { format, parseISO } from 'date-fns';
 import { Search, AlertTriangle, CheckCircle, ArrowDown, Calendar, RefreshCcw, X, Edit3, ChevronDown, Check, TrendingDown } from 'lucide-react';
@@ -11,37 +12,6 @@ interface TransactionListProps {
   initialPersonSearch?: string | null;
 }
 
-const formatCompactNumber = (num: number, currency: string) => {
-  const absNum = Math.abs(num);
-  const sign = num < 0 ? '-' : '';
-  const code = (currency || 'USD').toUpperCase().trim();
-  if (code === 'INR') {
-    if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
-    if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
-    return sign + absNum.toLocaleString('en-IN');
-  }
-  if (absNum >= 1000000) return sign + (absNum / 1000000).toFixed(2) + 'M';
-  if (absNum >= 1000) return sign + (absNum / 1000).toFixed(2) + 'K';
-  return sign + absNum.toLocaleString('en-US');
-};
-
-const formatCurrency = (amount: number, currency: string) => {
-  const code = (currency || 'USD').toUpperCase().trim();
-  if (code === 'INR') {
-    return '₹' + formatCompactNumber(amount, 'INR');
-  }
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch (e) {
-    // Fallback for cases where the currency code is not a valid ISO 4217 code
-    return `${code} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-};
 
 export const TransactionList: React.FC<TransactionListProps> = ({ 
   transactions, 

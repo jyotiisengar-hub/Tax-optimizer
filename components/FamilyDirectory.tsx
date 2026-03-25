@@ -88,8 +88,6 @@ export const FamilyDirectory: React.FC<FamilyDirectoryProps> = ({ transactions, 
       const rawName = (t.person || 'Unknown').replace(/\s+/g, ' ').trim();
       const normalizedName = rawName.toLowerCase();
       
-      if (normalizedName === 'icici') return;
-      
       if (!stats[normalizedName]) {
         stats[normalizedName] = { 
           displayName: rawName, // Keep original casing of first occurrence

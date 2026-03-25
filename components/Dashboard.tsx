@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
+import { formatCompactNumber, formatCurrency } from '../lib/currencyUtils';
 import { Transaction, TransactionType, Category, BehavioralProfile } from '../types';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -26,30 +27,6 @@ interface CurrencyStats {
   duplicates: number;
 }
 
-const formatCompactNumber = (num: number, currency: string) => {
-  const absNum = Math.abs(num);
-  const sign = num < 0 ? '-' : '';
-  if (currency.toUpperCase() === 'INR') {
-    if (absNum >= 10000000) return sign + (absNum / 10000000).toFixed(2) + ' Cr';
-    if (absNum >= 100000) return sign + (absNum / 100000).toFixed(2) + ' L';
-    return sign + absNum.toLocaleString('en-IN');
-  }
-  if (absNum >= 1000000) return sign + (absNum / 1000000).toFixed(2) + 'M';
-  if (absNum >= 1000) return sign + (absNum / 1000).toFixed(2) + 'K';
-  return sign + absNum.toLocaleString('en-US');
-};
-
-const formatCurrency = (amount: number, currency: string) => {
-  if (currency.toUpperCase() === 'INR') {
-    return '₹' + formatCompactNumber(amount, 'INR');
-  }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   transactions, 
@@ -210,13 +187,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-8">
       {/* Behavioral Archetype Summary */}
       {behavioralProfile && (
-        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6">
-          <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="bg-blue-50/30 rounded-[2rem] p-6 border border-blue-100/50 shadow-sm flex flex-col md:flex-row items-center gap-6">
+          <div className="w-20 h-20 bg-blue-100/50 rounded-full flex items-center justify-center flex-shrink-0">
             <Brain className="text-blue-600" size={40} />
           </div>
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full w-fit mx-auto md:mx-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100/50 px-3 py-1 rounded-full w-fit mx-auto md:mx-0">
                 Primary Archetype
               </span>
               <h2 className="text-2xl font-bold text-slate-900">
@@ -233,7 +210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {behavioralProfile.archetypes
               .filter(a => ['Security Seeker', 'Impulse Spender'].includes(a.archetype))
               .map(a => (
-                <div key={a.archetype} className="text-center px-4 py-2 bg-slate-50 rounded-2xl min-w-[80px]">
+                <div key={a.archetype} className="text-center px-4 py-2 bg-white/60 rounded-2xl min-w-[80px] border border-blue-100/30">
                   <div className="text-[10px] text-slate-500 font-bold uppercase mb-1 truncate max-w-[80px]">
                     {a.archetype.split(' ')[0]}
                   </div>
@@ -282,9 +259,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Deduction Tracker Dashboard Section */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-400/20 rounded-full -ml-20 -mb-20 blur-2xl" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-300/20 rounded-full -ml-20 -mb-20 blur-2xl" />
         
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-6">
@@ -296,7 +273,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="space-y-2">
-              <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Identified Deductions</p>
+              <p className="text-blue-50 text-xs font-bold uppercase tracking-wider">Total Identified Deductions</p>
               <div className="flex flex-col gap-1">
                 {Object.entries(totalDeductions).length > 0 ? (
                   Object.entries(totalDeductions).map(([cur, amount]) => (
@@ -311,33 +288,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Recent Tax Records</p>
+              <p className="text-blue-50 text-xs font-bold uppercase tracking-wider">Recent Tax Records</p>
               <div className="space-y-2">
                 {taxDeductions.slice(0, 2).map(t => (
                   <div key={t.id} className="bg-white/10 backdrop-blur-md p-3 rounded-2xl flex items-center justify-between border border-white/10">
                     <div className="flex flex-col">
                       <span className="text-xs font-bold truncate w-32">{t.merchant}</span>
-                      <span className="text-[10px] text-blue-200">{format(parseISO(t.date), 'MMM dd, yyyy')}</span>
+                      <span className="text-[10px] text-blue-100">{format(parseISO(t.date), 'MMM dd, yyyy')}</span>
                     </div>
                     <span className="font-bold">{formatCurrency(t.amount, t.currency)}</span>
                   </div>
                 ))}
                 {taxDeductions.length === 0 && (
-                  <div className="text-sm text-blue-200 italic">No deductions identified yet.</div>
+                  <div className="text-sm text-blue-100 italic">No deductions identified yet.</div>
                 )}
               </div>
             </div>
 
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/20 flex flex-col justify-between">
               <div className="flex items-start gap-3">
-                <Info size={18} className="text-blue-200 mt-1 shrink-0" />
+                <Info size={18} className="text-blue-100 mt-1 shrink-0" />
                 <p className="text-sm leading-relaxed text-blue-50">
                   AI has identified <span className="font-bold">{taxDeductions.length}</span> transactions as potential tax deductions. Review them in the Deductions tab.
                 </p>
               </div>
               <button 
                 onClick={() => onMonthClick?.('deductions')} // Hacky way to trigger tab switch if parent supports it
-                className="mt-4 w-full bg-white text-blue-700 py-3 rounded-2xl font-bold text-sm hover:bg-blue-50 transition-colors shadow-lg"
+                className="mt-4 w-full bg-white text-blue-600 py-3 rounded-2xl font-bold text-sm hover:bg-blue-50 transition-colors shadow-lg"
               >
                 View All Deductions
               </button>

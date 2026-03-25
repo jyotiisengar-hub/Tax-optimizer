@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, Legend
 } from 'recharts';
+import { formatCurrency, formatCompactNumber } from '../lib/currencyUtils';
 import { Transaction, TransactionType, Category } from '../types';
 import { format, parseISO, startOfMonth } from 'date-fns';
 import { ShieldCheck, TrendingUp, Receipt, Calculator, Percent, ArrowUpRight } from 'lucide-react';
@@ -12,16 +13,19 @@ interface TaxAnalyticsProps {
   transactions: Transaction[];
 }
 
-const formatCurrency = (amount: number, currency: string = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
 export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(t => set.add(t.currency || 'USD'));
+    return Array.from(set).sort();
+  }, [transactions]);
+
+  const selectedCurrency = useMemo(() => {
+    if (currencies.length === 0) return 'USD';
+    // Prefer USD if available, otherwise first one
+    return currencies.includes('USD') ? 'USD' : currencies[0];
+  }, [currencies]);
+
   const financialStats = useMemo(() => {
     let totalIncome = 0;
     let totalTaxPaid = 0;
@@ -89,7 +93,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             </div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Income</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalIncome)}</div>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalIncome, selectedCurrency)}</div>
           <p className="text-[10px] text-slate-400 mt-1 font-medium italic">Gross earnings identified</p>
         </div>
 
@@ -100,7 +104,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             </div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Expenses</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalExpenses)}</div>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.totalExpenses, selectedCurrency)}</div>
           <p className="text-[10px] text-emerald-600 mt-1 font-bold">Burn Rate: {financialStats.totalIncome > 0 ? ((financialStats.totalExpenses / financialStats.totalIncome) * 100).toFixed(1) : 0}%</p>
         </div>
 
@@ -111,7 +115,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
             </div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Estimated Tax</span>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.estimatedTotalTax)}</div>
+          <div className="text-2xl font-black text-slate-900">{formatCurrency(financialStats.estimatedTotalTax, selectedCurrency)}</div>
           <p className="text-[10px] text-slate-400 mt-1 font-medium">Projected liability</p>
         </div>
 
@@ -123,7 +127,7 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
               </div>
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Net Savings</span>
             </div>
-            <div className="text-2xl font-black">{formatCurrency(Math.max(0, financialStats.totalIncome - financialStats.totalExpenses))}</div>
+            <div className="text-2xl font-black">{formatCurrency(Math.max(0, financialStats.totalIncome - financialStats.totalExpenses), selectedCurrency)}</div>
             <p className="text-[10px] text-blue-400 mt-1 font-bold flex items-center gap-1">
               <ArrowUpRight size={10} /> Potential Savings Opportunity
             </p>
@@ -166,9 +170,10 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} tickFormatter={(v) => `$${v/1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} tickFormatter={(v) => formatCompactNumber(v, selectedCurrency)} />
                 <Tooltip 
                   contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'}}
+                  formatter={(value: number) => [formatCurrency(value, selectedCurrency), '']}
                 />
                 <Area type="monotone" dataKey="income" name="Money In" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
                 <Area type="monotone" dataKey="totalExpenses" name="Money Out" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorExpenses)" />
@@ -215,11 +220,11 @@ export const TaxAnalytics: React.FC<TaxAnalyticsProps> = ({ transactions }) => {
           <div className="mt-8 space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
               <span className="text-xs font-bold text-slate-500 uppercase">Total Money In</span>
-              <span className="text-sm font-black text-slate-900">{formatCurrency(financialStats.totalIncome)}</span>
+              <span className="text-sm font-black text-slate-900">{formatCurrency(financialStats.totalIncome, selectedCurrency)}</span>
             </div>
             <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl">
               <span className="text-xs font-bold text-emerald-600 uppercase">Total Money Out</span>
-              <span className="text-sm font-black text-emerald-700">{formatCurrency(financialStats.totalExpenses)}</span>
+              <span className="text-sm font-black text-emerald-700">{formatCurrency(financialStats.totalExpenses, selectedCurrency)}</span>
             </div>
           </div>
         </div>
